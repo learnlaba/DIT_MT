@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажер базы знаний - Наземный транспорт</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #0a0e1a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Анимированный фон */
+        .animated-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #111827 0%, #0a0e1a 100%);
+            overflow: hidden;
+        }
+        .bg-line {
+            position: absolute; height: 1px; background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.2), transparent);
+            animation: moveLine 25s linear infinite;
+        }
+        .bg-line:nth-child(1) { top: 20%; width: 200%; animation-duration: 30s; }
+        .bg-line:nth-child(2) { top: 50%; width: 150%; animation-duration: 20s; animation-delay: 5s; }
+        .bg-line:nth-child(3) { top: 80%; width: 180%; animation-duration: 35s; animation-delay: 10s; }
+        @keyframes moveLine { 0% { transform: translateX(-50%); } 100% { transform: translateX(0%); } }
+
+        .bg-dot {
+            position: absolute; width: 4px; height: 4px; background: rgba(239, 68, 68, 0.4); border-radius: 50%;
+            animation: floatDot 15s infinite ease-in-out;
+        }
+        @keyframes floatDot { 0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-30px) scale(1.5); opacity: 0.8; } }
+
+        /* ===== HEADER (НЕ ЗАКРЕПЛЁН) ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            margin-bottom: 20px;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .logo {
+            width: 44px; height: 44px; background: #ef4444; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 22px; color: white;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            flex-shrink: 0;
+        }
+        .title-block h1 { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+        .title-block p { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+        .timer {
+            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 8px 16px; border-radius: 8px; font-family: 'Courier New', monospace;
+            font-size: 18px; font-weight: 700; color: #ef4444;
+        }
+
+        /* ===== ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР ===== */
+        .progress-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .progress-line {
+            position: absolute; top: 15px; left: 30px; right: 30px; height: 2px;
+            background: rgba(255, 255, 255, 0.1); z-index: 0;
+        }
+        .progress-fill {
+            position: absolute; top: 15px; left: 30px; height: 2px;
+            background: linear-gradient(90deg, #ef4444, #dc2626); width: 0%;
+            z-index: 1; transition: width 0.5s ease;
+        }
+        .progress-steps { display: flex; justify-content: space-between; position: relative; z-index: 2; }
+        .step {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #0f172a; border: 2px solid rgba(239, 68, 68, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #64748b; transition: all 0.3s;
+        }
+        .step.active { background: #ef4444; border-color: #ef4444; color: #fff; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        .step.completed { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
+
+        /* Container */
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px 40px 120px; position: relative; z-index: 1; }
+
+        /* Admin Button */
+        .admin-btn {
+            position: fixed; top: 20px; left: 20px; z-index: 1000;
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #ef4444; padding: 8px 16px; border-radius: 6px;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            display: none; align-items: center; gap: 6px;
+            backdrop-filter: blur(10px); transition: all 0.3s;
+        }
+        .admin-btn:hover { background: rgba(239, 68, 68, 0.2); }
+        .admin-btn.visible { display: flex; }
+
+        /* Question Cards */
+        .question-card {
+            background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 12px; padding: 24px; margin-bottom: 20px;
+            backdrop-filter: blur(10px); transition: all 0.3s;
+        }
+        .question-card:hover { border-color: rgba(239, 68, 68, 0.4); }
+        .question-card.correct { border-color: #22c55e; background: rgba(34, 197, 94, 0.05); }
+        .question-card.incorrect { border-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        
+        .q-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .q-number {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; color: #ef4444; font-size: 14px; flex-shrink: 0;
+        }
+        .q-meta { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .q-text { font-size: 16px; font-weight: 600; color: #f8fafc; line-height: 1.4; }
+        
+        .q-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; margin-top: 16px; font-weight: 600; }
+        .q-input {
+            width: 100%; padding: 14px 16px; background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;
+            color: #fff; font-size: 14px; outline: none; transition: all 0.3s;
+        }
+        .q-input:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
+        .q-input::placeholder { color: #475569; }
+        .q-input.correct { border-color: #22c55e; color: #22c55e; }
+        .q-input.incorrect { border-color: #ef4444; color: #ef4444; }
+        .q-input:disabled { cursor: not-allowed; opacity: 0.8; }
+
+        /* ===== БЛОК РЕЗУЛЬТАТОВ ПОД ВОПРОСОМ ===== */
+        .result-block {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            animation: slideDown 0.4s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); max-height: 0; }
+            to { opacity: 1; transform: translateY(0); max-height: 500px; }
+        }
+        .result-block.show { display: block; }
+        .result-block.correct {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 4px solid #22c55e;
+        }
+        .result-block.incorrect {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+        }
+        .result-status {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .result-block.correct .result-status { color: #4ade80; }
+        .result-block.incorrect .result-status { color: #f87171; }
+        .result-row {
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .result-label {
+            color: #94a3b8;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 140px;
+        }
+        .result-value {
+            color: #e2e8f0;
+        }
+        .result-value.user-answer {
+            color: #fbbf24;
+            font-style: italic;
+        }
+        .result-value.correct-answer {
+            color: #4ade80;
+            font-weight: 600;
+        }
+        .result-value.wrong-answer {
+            color: #f87171;
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        .result-meta {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+            color: #64748b;
+        }
+        .result-meta span {
+            margin-right: 16px;
+        }
+        .result-meta strong {
+            color: #94a3b8;
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 16px 40px; display: flex; justify-content: space-between; align-items: center;
+            z-index: 100;
+        }
+        .stats { font-size: 14px; color: #94a3b8; }
+        .stats strong { color: #ef4444; font-size: 16px; }
+        .submit-btn {
+            background: #ef4444; color: white; border: none; padding: 12px 32px;
+            border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s;
+        }
+        .submit-btn:hover:not(:disabled) { background: #dc2626; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Modals */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+            z-index: 2000; justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b; border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 16px; width: 100%; max-width: 700px; max-height: 85vh;
+            overflow-y: auto; position: relative; animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal-header-bar {
+            background: #ef4444; color: white; padding: 12px 20px;
+            font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+            border-radius: 16px 16px 0 0; text-align: center;
+        }
+        .modal-close {
+            position: absolute; top: 12px; right: 20px; background: none; border: none;
+            color: #fff; font-size: 24px; cursor: pointer; z-index: 10; line-height: 1;
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; transition: all 0.2s;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.1); color: #fca5a5; }
+        
+        .modal-body { padding: 30px; }
+        .modal-body h2 { font-size: 24px; margin-bottom: 20px; color: #fff; }
+        
+        .password-input {
+            width: 100%; padding: 14px; background: #0f172a; border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px; color: #fff; font-size: 16px; margin-bottom: 20px; text-align: center; outline: none;
+        }
+        .password-input:focus { border-color: #ef4444; }
+        
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
+        }
+        .modal-btn.primary { background: #ef4444; color: white; }
+        .modal-btn.primary:hover { background: #dc2626; }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #cbd5e1; }
+        .modal-btn.secondary:hover { background: rgba(255,255,255,0.2); }
+
+        /* Answers List */
+        .answer-item {
+            background: rgba(15, 23, 42, 0.6); border-left: 4px solid #ef4444;
+            padding: 16px; margin-bottom: 12px; border-radius: 0 8px 8px 0;
+        }
+        .answer-item strong { color: #ef4444; display: block; margin-bottom: 6px; font-size: 14px; }
+        .answer-item p { color: #cbd5e1; font-size: 13px; margin-bottom: 4px; line-height: 1.5; }
+        .answer-item .meta { color: #64748b; font-size: 12px; }
+        .answer-item .meta strong { color: #94a3b8; }
+
+        /* Summary Stats */
+        .summary-stats {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .summary-score {
+            font-size: 48px;
+            font-weight: 800;
+            color: #ef4444;
+            margin-bottom: 8px;
+        }
+        .summary-label {
+            font-size: 14px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .summary-details {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .summary-detail {
+            text-align: center;
+        }
+        .summary-detail-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .summary-detail-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+        .summary-detail.correct .summary-detail-value { color: #4ade80; }
+        .summary-detail.incorrect .summary-detail-value { color: #f87171; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: rgba(239, 68, 68, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(239, 68, 68, 0.5); }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px 16px 120px; }
+            .header { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }
+            .title-block h1 { font-size: 16px; }
+            .title-block p { font-size: 9px; }
+            .footer { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+            .submit-btn { padding: 10px 16px; font-size: 12px; }
+            .progress-wrapper { padding: 15px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="animated-bg">
+        <div class="bg-line"></div><div class="bg-line"></div><div class="bg-line"></div>
+        <div class="bg-dot" style="left: 10%; top: 20%;"></div>
+        <div class="bg-dot" style="left: 30%; top: 60%; animation-delay: 2s;"></div>
+        <div class="bg-dot" style="left: 60%; top: 30%; animation-delay: 4s;"></div>
+        <div class="bg-dot" style="left: 80%; top: 70%; animation-delay: 1s;"></div>
+        <div class="bg-dot" style="left: 90%; top: 40%; animation-delay: 3s;"></div>
+    </div>
+
+    <button class="admin-btn" id="adminBtn">🔒 АДМИН</button>
+
+    <!-- HEADER (НЕ ЗАКРЕПЛЁН) -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">М</div>
+            <div class="title-block">
+                <h1>Тренажер базы знаний</h1>
+                <p>ПОИСК СТАТЕЙ · НАЗЕМНЫЙ ТРАНСПОРТ · КИС АРТ</p>
+            </div>
+        </div>
+        <div class="timer" id="timer">00:00</div>
+    </div>
+
+    <!-- ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР -->
+    <div class="progress-wrapper">
+        <div class="progress-line"></div>
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-steps" id="progressSteps"></div>
+    </div>
+
+    <div class="container">
+        <div id="questionsContainer"></div>
+    </div>
+
+    <div class="footer">
+        <div class="stats">Заполнено <strong id="filledCount">0</strong> из 10 вопросов</div>
+        <button class="submit-btn" id="submitBtn">Завершить проверку</button>
+    </div>
+
+    <!-- Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal" style="max-width: 400px;">
+            <button class="modal-close" onclick="closeModal('passwordModal')">&times;</button>
+            <div class="modal-header-bar">СЛУЖЕБНЫЙ ДОСТУП</div>
+            <div class="modal-body">
+                <h2 style="font-size: 20px; margin-bottom: 16px;">Введите пароль</h2>
+                <input type="password" class="password-input" id="passwordInput" placeholder="••••">
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" onclick="closeModal('passwordModal')">Отмена</button>
+                    <button class="modal-btn primary" onclick="checkPassword()">Открыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Answers Modal (АДМИН) -->
+    <div class="modal-overlay" id="answersModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('answersModal')">&times;</button>
+            <div class="modal-header-bar">ПРАВИЛЬНЫЕ ОТВЕТЫ · 10 ВОПРОСОВ</div>
+            <div class="modal-body">
+                <h2>Ответы на вопросы тренажера</h2>
+                <div id="answersList"></div>
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button class="modal-btn primary" style="width: 100%;" onclick="closeModal('answersModal')">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questionsData = [
+            { id: 1, q: "Как вызвать автобус «По пути»?", kw: "по пути", filter: "Наземный транспорт", a: "Как вызвать автобус «По пути»?" },
+            { id: 2, q: "Должен ли водитель останавливать по требованию пассажира где ему удобно?", kw: "по пути", filter: "Наземный транспорт", a: "Имеет ли право водитель останавливаться «по требованию», если автобус застрял в пробке?" },
+            { id: 3, q: "Как я могу оставить жалобу на трамвай?", kw: "трамвай жалоб", filter: "Наземный транспорт", a: "Обращения с жалобами на трамваи" },
+            { id: 4, q: "Что такое Магистраль?", kw: "магистраль", filter: "Наземный транспорт", a: "Что такое «Магистраль»?" },
+            { id: 5, q: "Долго жду автобус, почему он опаздывает?", kw: "долго", filter: "Наземный транспорт", a: "Долго жду автобус/электробус! По расписанию он есть, а на остановке его нет! Когда приедет? Почему транспорт ходит не по расписанию? Мой автобус опоздал!" },
+            { id: 6, q: "Что такое сервис \"По пути?\"", kw: "по пути", filter: "Наземный транспорт", a: "Что такое по пути?" },
+            { id: 7, q: "Как оплатить штраф за проезд в автобусе?", kw: "штраф оплат", filter: "Наземный транспорт", a: "Как можно оплатить штраф?" },
+            { id: 8, q: "Как записаться на добрый автобус?", kw: "добрый зап", filter: "Наземный транспорт", a: "Как мне записаться, чтобы стать пассажиром Доброго автобуса?" },
+            { id: 9, q: "Где можно пройти регистрацию курьера?", kw: "регистр", filter: "КИС АРТ", a: "Где и как происходит регистрация курьера?" },
+            { id: 10, q: "Нужно ли курьеру проходить какие либо тестирования?", kw: "тестир", filter: "КИС АРТ", a: "Нужно ли курьеру проходить тестирование?" }
+        ];
+
+        let seconds = 0;
+        let timerInterval;
+        let isCompleted = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderProgress();
+            renderQuestions();
+            startTimer();
+            setupAdmin();
+            updateFilledCount();
+        });
+
+        function renderProgress() {
+            const container = document.getElementById('progressSteps');
+            container.innerHTML = questionsData.map((_, i) => `<div class="step" id="step-${i+1}">${i+1}</div>`).join('');
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = questionsData.map(q => `
+                <div class="question-card" id="card-${q.id}">
+                    <div class="q-header">
+                        <div class="q-number">${String(q.id).padStart(2, '0')}</div>
+                        <div>
+                            <div class="q-meta">ВОПРОС ${q.id} / 10</div>
+                            <div class="q-text">${q.q}</div>
+                        </div>
+                    </div>
+                    <div class="q-label">НАЗВАНИЕ СТАТЬИ ИЗ БАЗЫ ЗНАНИЙ</div>
+                    <input type="text" class="q-input" id="input-${q.id}" placeholder="Введите точное название статьи..." oninput="updateFilledCount()">
+                    <div class="result-block" id="result-${q.id}"></div>
+                </div>
+            `).join('');
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                seconds++;
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function updateFilledCount() {
+            let count = 0;
+            questionsData.forEach(q => {
+                if (document.getElementById(`input-${q.id}`).value.trim() !== '') count++;
+            });
+            document.getElementById('filledCount').textContent = count;
+            document.getElementById('progressFill').style.width = `${(count / 10) * 100}%`;
+            
+            questionsData.forEach((q, i) => {
+                const step = document.getElementById(`step-${i+1}`);
+                const val = document.getElementById(`input-${q.id}`).value.trim();
+                step.classList.toggle('completed', val !== '');
+                step.classList.toggle('active', val !== '' && i === count - 1);
+            });
+        }
+
+        function normalize(text) {
+            return text.toLowerCase()
+                .replace(/[ё]/g, 'е')
+                .replace(/[^\wа-яё\s]/gi, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function checkAnswers() {
+            if (isCompleted) return;
+            isCompleted = true;
+            clearInterval(timerInterval);
+
+            let correctCount = 0;
+            let incorrectCount = 0;
+
+            questionsData.forEach(q => {
+                const input = document.getElementById(`input-${q.id}`);
+                const resultBlock = document.getElementById(`result-${q.id}`);
+                const card = document.getElementById(`card-${q.id}`);
+                const userAnswer = input.value.trim();
+                const normalizedUser = normalize(userAnswer);
+                const normalizedCorrect = normalize(q.a);
+
+                const isCorrect = normalizedUser === normalizedCorrect || 
+                                  (normalizedUser.length > 10 && normalizedCorrect.includes(normalizedUser)) ||
+                                  (normalizedCorrect.length > 10 && normalizedUser.includes(normalizedCorrect));
+
+                input.disabled = true;
+
+                if (isCorrect) {
+                    correctCount++;
+                    input.classList.add('correct');
+                    card.classList.add('correct');
+                    resultBlock.className = 'result-block show correct';
+                    resultBlock.innerHTML = `
+                        <div class="result-status">✓ Верно!</div>
+                        <div class="result-row">
+                            <span class="result-label">Ваш ответ:</span>
+                            <span class="result-value">${userAnswer || '—'}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Правильный ответ:</span>
+                            <span class="result-value correct-answer">${q.a}</span>
+                        </div>
+                        <div class="result-meta">
+                            <span><strong>Ключевое слово:</strong> ${q.kw}</span>
+                            <span><strong>Фильтр:</strong> ${q.filter}</span>
+                        </div>
+                    `;
+                } else {
+                    incorrectCount++;
+                    input.classList.add('incorrect');
+                    card.classList.add('incorrect');
+                    resultBlock.className = 'result-block show incorrect';
+                    resultBlock.innerHTML = `
+                        <div class="result-status">✗ Неверно</div>
+                        <div class="result-row">
+                            <span class="result-label">Ваш ответ:</span>
+                            <span class="result-value wrong-answer">${userAnswer || '(не отвечено)'}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Правильный ответ:</span>
+                            <span class="result-value correct-answer">${q.a}</span>
+                        </div>
+                        <div class="result-meta">
+                            <span><strong>Ключевое слово:</strong> ${q.kw}</span>
+                            <span><strong>Фильтр:</strong> ${q.filter}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            const summaryHtml = `
+                <div class="summary-stats">
+                    <div class="summary-score">${correctCount}/10</div>
+                    <div class="summary-label">Правильных ответов</div>
+                    <div class="summary-details">
+                        <div class="summary-detail correct">
+                            <div class="summary-detail-value">${correctCount}</div>
+                            <div class="summary-detail-label">Верно</div>
+                        </div>
+                        <div class="summary-detail incorrect">
+                            <div class="summary-detail-value">${incorrectCount}</div>
+                            <div class="summary-detail-label">Неверно</div>
+                        </div>
+                        <div class="summary-detail">
+                            <div class="summary-detail-value">${document.getElementById('timer').textContent}</div>
+                            <div class="summary-detail-label">Время</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('questionsContainer').insertAdjacentHTML('afterbegin', summaryHtml);
+
+            document.getElementById('submitBtn').textContent = 'Проверка завершена';
+            document.getElementById('submitBtn').disabled = true;
+
+            if (incorrectCount > 0) {
+                const firstIncorrect = document.querySelector('.question-card.incorrect');
+                if (firstIncorrect) {
+                    setTimeout(() => {
+                        firstIncorrect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function resetTrainer() {
+            isCompleted = false;
+            seconds = 0;
+            startTimer();
+            document.getElementById('submitBtn').textContent = 'Завершить проверку';
+            document.getElementById('submitBtn').disabled = false;
+            renderQuestions();
+            updateFilledCount();
+            const summary = document.querySelector('.summary-stats');
+            if (summary) summary.remove();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setupAdmin() {
+            let ctrl = false, alt = false;
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Control') ctrl = true;
+                if (e.key === 'Alt') alt = true;
+                if (ctrl && alt) document.getElementById('adminBtn').classList.add('visible');
+            });
+            document.addEventListener('keyup', e => {
+                if (e.key === 'Control') ctrl = false;
+                if (e.key === 'Alt') alt = false;
+            });
+
+            document.getElementById('adminBtn').addEventListener('click', () => {
+                document.getElementById('passwordModal').classList.add('active');
+                setTimeout(() => document.getElementById('passwordInput').focus(), 100);
+            });
+
+            document.getElementById('passwordInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') checkPassword();
+            });
+        }
+
+        function checkPassword() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === '3210') {
+                closeModal('passwordModal');
+                document.getElementById('passwordInput').value = '';
+                showAllAnswers();
+            } else {
+                alert('Неверный пароль!');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function showAllAnswers() {
+            const list = document.getElementById('answersList');
+            list.innerHTML = questionsData.map((q, i) => `
+                <div class="answer-item">
+                    <strong>Вопрос ${i+1}:</strong> ${q.q}
+                    <p class="meta"><strong>Ключевое слово:</strong> ${q.kw}</p>
+                    <p class="meta"><strong>Фильтр:</strong> ${q.filter}</p>
+                    <p class="meta"><strong>Правильный ответ:</strong> ${q.a}</p>
+                </div>
+            `).join('');
+            document.getElementById('answersModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', checkAnswers);
+    </script>
+</body>
+</html>
